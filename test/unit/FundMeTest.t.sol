@@ -2,8 +2,8 @@
 pragma solidity ^0.8.18;
 
 import {Test, console} from "forge-std/Test.sol";
-import {FundMe} from "../src/FundMe.sol";
-import {DeployFundMe} from "../script/DeployFundMe.s.sol";
+import {FundMe} from "../../src/FundMe.sol";
+import {DeployFundMe} from "../../script/DeployFundMe.s.sol";
 
 contract FundMeTest is Test {
     FundMe fundMe;
@@ -61,8 +61,8 @@ contract FundMeTest is Test {
     }
 
     function testOnlyOwnerCanWithdraw() public funded {
-        vm.expectRevert();
         vm.prank(USER);
+        vm.expectRevert();
         fundMe.withdraw();
     }
 
@@ -102,6 +102,33 @@ contract FundMeTest is Test {
         // Act
         vm.startPrank(fundMe.getOwner());
         fundMe.withdraw();
+        vm.stopPrank();
+
+        // Assert
+        assertEq(address(fundMe).balance, 0);
+        assertEq(
+            startingOwnerBalance + startingFundMeBalance,
+            fundMe.getOwner().balance
+        );
+    }
+
+    function testWithdrawFromMultipleFundersCheaper() public funded {
+        // Arrange
+        uint160 numberOfFunders = 10;
+        uint160 startingFunderIndex = 1;
+        for (uint160 i = startingFunderIndex; i < numberOfFunders; i++) {
+            // vm.prank new address
+            // vm.deal new address
+            hoax(address(i), SEND_VALUE);
+            fundMe.fund{value: SEND_VALUE}();
+        }
+
+        uint256 startingOwnerBalance = fundMe.getOwner().balance;
+        uint256 startingFundMeBalance = address(fundMe).balance;
+
+        // Act
+        vm.startPrank(fundMe.getOwner());
+        fundMe.cheaperWithdraw();
         vm.stopPrank();
 
         // Assert
